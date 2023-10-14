@@ -219,7 +219,7 @@ export function createSignal<T>(
   value?: T,
   options?: SignalOptions<T | undefined>
 ): Signal<T | undefined> {
-  options = options ? Object.assign({}, signalOptions, options) : signalOptions;
+  options = options ? Object.assign({}, signalOptions, options) : signalOptions; // 與預設合併
 
   const s: SignalState<T | undefined> = {
     value,
@@ -236,7 +236,7 @@ export function createSignal<T>(
   const setter: Setter<T | undefined> = (value?: unknown) => {
     if (typeof value === "function") {
       if (Transition && Transition.running && Transition.sources.has(s)) value = value(s.tValue);
-      else value = value(s.value);
+      else value = value(s.value); // 執行 function 的 value
     }
     return writeSignal(s, value);
   };
@@ -1283,7 +1283,7 @@ export function readSignal(this: SignalState<any> | Memo<any>) {
 export function writeSignal(node: SignalState<any> | Memo<any>, value: any, isComp?: boolean) {
   let current =
     Transition && Transition.running && Transition.sources.has(node) ? node.tValue : node.value;
-  if (!node.comparator || !node.comparator(current, value)) {
+  if (!node.comparator || !node.comparator(current, value)) { // 沒有 comparator 或是 comparator 的結果不一樣時
     if (Transition) {
       const TransitionRunning = Transition.running;
       if (TransitionRunning || (!isComp && Transition.sources.has(node))) {
@@ -1291,10 +1291,10 @@ export function writeSignal(node: SignalState<any> | Memo<any>, value: any, isCo
         node.tValue = value;
       }
       if (!TransitionRunning) node.value = value;
-    } else node.value = value;
-    if (node.observers && node.observers.length) {
+    } else node.value = value; // 更新原始的 value
+    if (node.observers && node.observers.length) { // 如果有已註冊的 observers 時
       runUpdates(() => {
-        for (let i = 0; i < node.observers!.length; i += 1) {
+        for (let i = 0; i < node.observers!.length; i += 1) { // 將每個 observer 輪詢
           const o = node.observers![i];
           const TransitionRunning = Transition && Transition.running;
           if (TransitionRunning && Transition!.disposed.has(o)) continue;
@@ -1304,9 +1304,9 @@ export function writeSignal(node: SignalState<any> | Memo<any>, value: any, isCo
             if ((o as Memo<any>).observers) markDownstream(o as Memo<any>);
           }
           if (!TransitionRunning) o.state = STALE;
-          else o.tState = STALE;
+          else o.tState = STALE; // 將此 observer 的狀態標為過時
         }
-        if (Updates!.length > 10e5) {
+        if (Updates!.length > 10e5) { // 避免無限輪迴
           Updates = [];
           if ("_SOLID_DEV_") throw new Error("Potential Infinite Loop Detected.");
           throw new Error();
